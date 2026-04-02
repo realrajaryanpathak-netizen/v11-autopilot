@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V11 AutoPilot</title>
+<meta http-equiv="refresh" content="300">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+body{background:#060d1a;color:#e2e8f0;font-family:'Inter',system-ui,sans-serif;padding:0}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+.hdr{text-align:center;padding:28px 0 20px;border-bottom:1px solid #1e293b}
+.hdr h1{font-family:'JetBrains Mono',monospace;color:#22d3ee;font-size:24px;font-weight:700;letter-spacing:-0.5px}
+.hdr .sub{color:#475569;font-size:12px;margin-top:6px}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;margin-left:6px}
+.badge-paper{background:#1e3a5f;color:#67e8f9}
+.badge-real{background:#7f1d1d;color:#fca5a5}
+.badge-live{background:#064e3b;color:#6ee7b7;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:20px 0}
+@media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:linear-gradient(135deg,#0c1528,#0f1d35);border:1px solid #1e293b;border-radius:12px;padding:16px;text-align:center}
+.kpi .label{color:#475569;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600}
+.kpi .val{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;margin-top:4px}
+.kpi .val.cyan{color:#22d3ee}
+.kpi .val.green{color:#10b981}
+.kpi .val.red{color:#ef4444}
+.kpi .val.amber{color:#f59e0b}
+.card{background:#0c1528;border:1px solid #1e293b;border-radius:12px;padding:18px;margin:14px 0}
+.card h3{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card h3 span{font-size:14px}
+table{width:100%;border-collapse:collapse}
+th{color:#475569;font-size:10px;text-transform:uppercase;letter-spacing:1px;text-align:left;padding:8px;border-bottom:1px solid #1e293b}
+td{padding:10px 8px;border-bottom:1px solid #0f1729;font-size:13px}
+tr:hover{background:#0f172a}
+.ticker{font-family:'JetBrains Mono',monospace;font-weight:700;color:#e2e8f0}
+.cat{font-size:10px;color:#475569;margin-left:4px}
+.buy{color:#10b981;font-weight:700}
+.sell{color:#ef4444;font-weight:700}
+.bar-wrap{display:flex;align-items:center;gap:6px}
+.bar{height:14px;border-radius:3px;background:linear-gradient(90deg,#22d3ee,#0891b2);min-width:2px}
+.signals{display:flex;flex-wrap:wrap;gap:8px}
+.sig{background:#0f1729;border:1px solid #1e293b;border-radius:6px;padding:6px 10px;font-size:12px}
+.sig b{color:#94a3b8}
+.sig .v{font-family:'JetBrains Mono',monospace;color:#22d3ee;margin-left:4px}
+.sig .v.warn{color:#f59e0b}
+.sig .v.danger{color:#ef4444}
+.empty{text-align:center;color:#334155;padding:30px;font-size:14px}
+.footer{text-align:center;color:#1e293b;font-size:11px;margin-top:24px;padding:16px}
+.loading{text-align:center;padding:60px;color:#334155}
+.loading .spin{display:inline-block;width:20px;height:20px;border:2px solid #1e293b;border-top:2px solid #22d3ee;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.updated{color:#334155;font-size:11px;text-align:center;margin-top:8px}
+.regime-bar{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.regime-bar.crash{background:#ef4444}
+.regime-bar.choppy{background:#f59e0b}
+.regime-bar.mild,.regime-bar.strong{background:#10b981}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>V11 AutoPilot <span class="badge badge-paper" id="modeBadge">PAPER</span></h1>
+    <div class="sub">Acceleration Momentum • 31% CAGR Backtest • GitHub Actions Powered</div>
+  </div>
+
+  <div id="loading" class="loading"><div class="spin"></div><br>Loading portfolio...</div>
+  <div id="content" style="display:none">
+
+    <div class="grid">
+      <div class="kpi"><div class="label">Portfolio</div><div class="val cyan" id="kpiPV">—</div></div>
+      <div class="kpi"><div class="label">Return</div><div class="val" id="kpiRet">—</div></div>
+      <div class="kpi"><div class="label">Regime</div><div class="val" id="kpiRegime">—</div></div>
+      <div class="kpi"><div class="label">Cash</div><div class="val cyan" id="kpiCash">—</div></div>
+      <div class="kpi"><div class="label">Positions</div><div class="val cyan" id="kpiPos">—</div></div>
+      <div class="kpi"><div class="label">Last Rebalance</div><div class="val cyan" id="kpiLast" style="font-size:13px">—</div></div>
+    </div>
+
+    <div class="card" id="signalsCard" style="display:none">
+      <h3><span>📊</span> Market Signals</h3>
+      <div class="signals" id="signals"></div>
+    </div>
+
+    <div class="card" id="holdingsCard" style="display:none">
+      <h3><span>💼</span> Holdings</h3>
+      <table><thead><tr><th>Stock</th><th>Shares</th><th>Value</th><th>Weight</th></tr></thead>
+      <tbody id="holdingsBody"></tbody></table>
+    </div>
+
+    <div class="card" id="picksCard" style="display:none">
+      <h3><span>🏆</span> Current Picks</h3>
+      <table><thead><tr><th>#</th><th>Stock</th><th>Momentum</th><th>Acceleration</th></tr></thead>
+      <tbody id="picksBody"></tbody></table>
+    </div>
+
+    <div class="card" id="tradesCard" style="display:none">
+      <h3><span>📝</span> Recent Trades</h3>
+      <table><thead><tr><th>Date</th><th>Action</th><th>Stock</th><th>Shares</th><th>Value</th></tr></thead>
+      <tbody id="tradesBody"></tbody></table>
+    </div>
+
+    <div class="card" id="historyCard" style="display:none">
+      <h3><span>📈</span> Value History</h3>
+      <table><thead><tr><th>Date</th><th>Value</th><th>Regime</th></tr></thead>
+      <tbody id="historyBody"></tbody></table>
+    </div>
+
+    <div class="updated" id="updated"></div>
+  </div>
+
+  <div class="footer">Auto-refreshes every 5 min • Data from GitHub Actions • V11 Acceleration Momentum</div>
+</div>
+
+<script>
+// ── CONFIG: Change this to your GitHub username and repo ──
+const GITHUB_USER = 'realrajaryanpathak-netizen';
+const GITHUB_REPO = 'v11-autopilot';
+const BRANCH = 'main';
+
+const RAW = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${BRANCH}`;
+
+function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+
+async function load() {
+  try {
+    const [stateRes, tradesRes] = await Promise.all([
+      fetch(`${RAW}/state.json?t=${Date.now()}`),
+      fetch(`${RAW}/trades.json?t=${Date.now()}`)
+    ]);
+
+    if (!stateRes.ok) throw new Error('state.json not found — run the bot first');
+    const st = await stateRes.json();
+    const trades = tradesRes.ok ? await tradesRes.json() : [];
+
+    // Mode
+    const mode = st.mode || 'paper';
+    document.getElementById('modeBadge').textContent = mode.toUpperCase();
+    document.getElementById('modeBadge').className = `badge badge-${mode}`;
+
+    // KPIs
+    const pv = st.cash + Object.values(st.holdings || {}).reduce((a, b) => a + 0, 0); // Approximate
+    const inception = st.inception_value || 1000000;
+    const lastPV = st.history && st.history.length > 0 ? st.history[st.history.length - 1].value : inception;
+    const ret = ((lastPV / inception) - 1) * 100;
+    
+    document.getElementById('kpiPV').textContent = fmt(lastPV);
+    
+    const retEl = document.getElementById('kpiRet');
+    retEl.textContent = (ret >= 0 ? '+' : '') + ret.toFixed(1) + '%';
+    retEl.className = 'val ' + (ret >= 0 ? 'green' : 'red');
+
+    const regime = st.regime || '?';
+    const regimeEl = document.getElementById('kpiRegime');
+    const rc = regime === 'CRASH' ? 'red' : regime === 'CHOPPY' ? 'amber' : 'green';
+    regimeEl.innerHTML = `<span class="regime-bar ${regime.toLowerCase()}"></span>${regime}`;
+    regimeEl.className = 'val ' + rc;
+
+    document.getElementById('kpiCash').textContent = fmt(st.cash || 0);
+    document.getElementById('kpiPos').textContent = Object.keys(st.holdings || {}).length;
+    document.getElementById('kpiLast').textContent = (st.last_rebalance || 'Never').substring(0, 16);
+
+    // Signals
+    const details = st.details || {};
+    const sigEl = document.getElementById('signals');
+    sigEl.innerHTML = '';
+    const dangerKeys = { CrashScore: v => parseInt(v) >= 3, VIX: v => v > 28, Breadth: v => v < 0.2 };
+    const warnKeys = { VIX: v => v > 20, Breadth: v => v < 0.35 };
+    
+    for (const [k, v] of Object.entries(details)) {
+      const cls = dangerKeys[k] && dangerKeys[k](v) ? 'danger' : warnKeys[k] && warnKeys[k](v) ? 'warn' : '';
+      sigEl.innerHTML += `<div class="sig"><b>${k}</b><span class="v ${cls}">${v}</span></div>`;
+    }
+    if (Object.keys(details).length > 0) document.getElementById('signalsCard').style.display = '';
+
+    // Holdings (from last known state — no live prices, just show what we hold)
+    const holdings = st.holdings || {};
+    const hBody = document.getElementById('holdingsBody');
+    hBody.innerHTML = '';
+    const tickers = Object.keys(holdings);
+    if (tickers.length > 0) {
+      // Get weights from history
+      const totalShares = tickers.length;
+      tickers.forEach(t => {
+        const shares = holdings[t];
+        const cat = t === 'GOLDBEES.NS' ? '🛡️' : '🇮🇳';
+        hBody.innerHTML += `<tr>
+          <td><span class="ticker">${t}</span> <span class="cat">${cat}</span></td>
+          <td>${shares}</td>
+          <td>—</td>
+          <td>~${(100/totalShares).toFixed(0)}%</td>
+        </tr>`;
+      });
+      document.getElementById('holdingsCard').style.display = '';
+    }
+
+    // Picks
+    const picks = st.picks || [];
+    const pBody = document.getElementById('picksBody');
+    pBody.innerHTML = '';
+    if (picks.length > 0) {
+      picks.forEach((p, i) => {
+        pBody.innerHTML += `<tr>
+          <td>${i + 1}</td>
+          <td><span class="ticker">${p.ticker}</span></td>
+          <td class="buy">+${p.momentum}%</td>
+          <td style="color:${p.acceleration > 0 ? '#10b981' : '#ef4444'}">${p.acceleration > 0 ? '+' : ''}${p.acceleration}%</td>
+        </tr>`;
+      });
+      document.getElementById('picksCard').style.display = '';
+    }
+
+    // Trades
+    const tBody = document.getElementById('tradesBody');
+    tBody.innerHTML = '';
+    const recentTrades = trades.slice(-10).reverse();
+    if (recentTrades.length > 0) {
+      recentTrades.forEach(t => {
+        tBody.innerHTML += `<tr>
+          <td style="font-size:11px;color:#475569">${t.time}</td>
+          <td class="${t.action === 'BUY' ? 'buy' : 'sell'}">${t.action}</td>
+          <td><span class="ticker">${t.ticker}</span></td>
+          <td>${t.shares}</td>
+          <td>${fmt(t.value)}</td>
+        </tr>`;
+      });
+      document.getElementById('tradesCard').style.display = '';
+    }
+
+    // History
+    const hist = (st.history || []).slice(-10).reverse();
+    const histBody = document.getElementById('historyBody');
+    histBody.innerHTML = '';
+    if (hist.length > 0) {
+      hist.forEach(h => {
+        const rClass = h.regime === 'CRASH' || h.regime === 'CRASH_EXIT' ? 'red' : 
+                       h.regime === 'CHOPPY' ? 'amber' : 'green';
+        histBody.innerHTML += `<tr>
+          <td>${h.date}</td>
+          <td style="font-family:'JetBrains Mono',monospace">${fmt(h.value)}</td>
+          <td><span class="regime-bar ${(h.regime||'').toLowerCase()}"></span>${h.regime || ''}</td>
+        </tr>`;
+      });
+      document.getElementById('historyCard').style.display = '';
+    }
+
+    document.getElementById('updated').textContent = `Last updated: ${new Date().toLocaleString()}`;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = '';
+
+  } catch (e) {
+    document.getElementById('loading').innerHTML = 
+      `<div style="color:#ef4444">⚠️ ${e.message}</div>
+       <div style="color:#475569;margin-top:12px;font-size:12px">
+         Run the bot first: Actions → V11 Trading Bot → Run workflow → rebalance
+       </div>`;
+  }
+}
+
+load();
+setInterval(load, 300000); // Refresh every 5 min
+</script>
+</body>
+</html>
