@@ -1,0 +1,52 @@
+{
+  "cash": -109.00278034972143,
+  "holdings": {
+    "BHARATFORG.NS": 145,
+    "GOLDBEES.NS": 1658,
+    "VEDL.NS": 289,
+    "SHRIRAMFIN.NS": 221,
+    "NATIONALUM.NS": 410
+  },
+  "inception": "2026-04-02",
+  "inception_value": 1000000,
+  "last_rebalance": "2026-04-02 21:39",
+  "regime": "CHOPPY",
+  "details": {
+    "VIX": 24.5,
+    "LQD/JNK": 1.138,
+    "Breadth": 0.283,
+    "RealVol": 0.305,
+    "NiftyMom": -0.139,
+    "CrashScore": "0/7"
+  },
+  "picks": [
+    {
+      "ticker": "NATIONALUM.NS",
+      "momentum": 163.1,
+      "acceleration": 71.8
+    },
+    {
+      "ticker": "VEDL.NS",
+      "momentum": 105.6,
+      "acceleration": 24.9
+    },
+    {
+      "ticker": "BHARATFORG.NS",
+      "momentum": 94.9,
+      "acceleration": 14.8
+    },
+    {
+      "ticker": "SHRIRAMFIN.NS",
+      "momentum": 70.3,
+      "acceleration": 53.9
+    }
+  ],
+  "history": [
+    {
+      "date": "2026-04-02",
+      "value": 998502.08,
+      "regime": "CHOPPY"
+    }
+  ],
+  "fund_adds": []
+}
