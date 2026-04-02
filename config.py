@@ -1,8 +1,12 @@
 
 """Central configuration — all settings in one place."""
 import os
-from dotenv import load_dotenv
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # GitHub Actions uses real env vars, no .env needed
+
 
 # ═══════════════════════════════════════════
 # ENVIRONMENT (set these on Railway)
