@@ -1,12 +1,13 @@
-"""Data layer — downloads prices, manages Nifty 200 universe."""
+"""Data layer — downloads prices in batches to avoid rate limits."""
 import pandas as pd
 import numpy as np
 import logging
+import time
 
 log = logging.getLogger(__name__)
 
 def get_nifty200_tickers():
-    """Get current Nifty 200 constituents from NSE website."""
+    """Get current Nifty 200 constituents from NSE."""
     try:
         url = "https://archives.nseindia.com/content/indices/ind_nifty200list.csv"
         df = pd.read_csv(url)
@@ -14,18 +15,8 @@ def get_nifty200_tickers():
         log.info(f"Loaded {len(tickers)} Nifty 200 tickers from NSE")
         return tickers
     except Exception as e:
-        log.warning(f"NSE download failed ({e}), trying backup...")
+        log.warning(f"NSE download failed ({e}), using fallback")
     
-    try:
-        url = "https://www1.nseindia.com/content/indices/ind_nifty200list.csv"
-        df = pd.read_csv(url)
-        tickers = [f"{s.strip()}.NS" for s in df['Symbol'].tolist()]
-        return tickers
-    except:
-        pass
-    
-    # Hardcoded fallback — top 100 liquid NSE stocks
-    log.warning("Using hardcoded fallback universe")
     return [
         "RELIANCE.NS","TCS.NS","HDFCBANK.NS","INFY.NS","ICICIBANK.NS",
         "BHARTIARTL.NS","SBIN.NS","ITC.NS","LT.NS","BAJFINANCE.NS",
@@ -37,17 +28,10 @@ def get_nifty200_tickers():
         "PNB.NS","BANKBARODA.NS","CANBK.NS","PFC.NS","RECLTD.NS",
         "BHEL.NS","SAIL.NS","MUTHOOTFIN.NS","PERSISTENT.NS","COFORGE.NS",
         "PIIND.NS","ASTRAL.NS","DEEPAKNTR.NS","NAUKRI.NS","GODREJPROP.NS",
-        "ZEEL.NS","FEDERALBNK.NS","MANAPPURAM.NS","MPHASIS.NS","ATUL.NS",
-        "SBILIFE.NS","HDFCLIFE.NS","BAJAJHLDNG.NS","CHOLAFIN.NS","SHRIRAMFIN.NS",
-        "INDIGO.NS","TVSMOTOR.NS","DRREDDY.NS","CIPLA.NS","EICHERMOT.NS",
-        "HEROMOTOCO.NS","BPCL.NS","IOC.NS","GAIL.NS","TATAPOWER.NS",
-        "M&M.NS","TECHM.NS","LTIM.NS","DABUR.NS","BRITANNIA.NS",
-        "APOLLOHOSP.NS","MAXHEALTH.NS","TORNTPHARM.NS","LUPIN.NS","DMART.NS",
-        "POLYCAB.NS","DIXON.NS","OBEROIRLTY.NS","PHOENIXLTD.NS","IIFL.NS",
     ]
 
 def download_prices(tickers=None, period="2y"):
-    """Download daily prices via yfinance."""
+    """Download prices in batches of 20 to avoid rate limits."""
     import yfinance as yf
     from config import SAFE_HAVENS, SIGNAL_TICKERS
     
@@ -55,16 +39,46 @@ def download_prices(tickers=None, period="2y"):
         tickers = get_nifty200_tickers()
     
     all_tickers = list(set(tickers + SAFE_HAVENS + SIGNAL_TICKERS))
-    log.info(f"Downloading {len(all_tickers)} tickers ({period})...")
+    log.info(f"Downloading {len(all_tickers)} tickers in batches...")
     
-    data = yf.download(all_tickers, period=period, auto_adjust=True,
-                       threads=True, progress=False)
+    # Download in batches of 20
+    BATCH = 20
+    all_dfs = []
     
-    if isinstance(data.columns, pd.MultiIndex):
-        prices = data['Close']
-    else:
-        prices = pd.DataFrame(data['Close'])
+    for i in range(0, len(all_tickers), BATCH):
+        batch = all_tickers[i:i+BATCH]
+        attempt = 0
+        while attempt < 3:
+            try:
+                data = yf.download(batch, period=period, auto_adjust=True,
+                                   threads=True, progress=False)
+                if isinstance(data.columns, pd.MultiIndex):
+                    df = data['Close']
+                elif not data.empty:
+                    df = pd.DataFrame(data['Close'])
+                else:
+                    df = pd.DataFrame()
+                
+                if not df.empty:
+                    all_dfs.append(df)
+                    log.info(f"  Batch {i//BATCH+1}: {len(df.columns)} tickers OK")
+                break
+            except Exception as e:
+                attempt += 1
+                wait = 5 * attempt
+                log.warning(f"  Batch {i//BATCH+1} failed (attempt {attempt}): {e}. Waiting {wait}s...")
+                time.sleep(wait)
+        
+        # Small delay between batches
+        if i + BATCH < len(all_tickers):
+            time.sleep(2)
     
-    prices = prices.ffill().dropna(axis=1, how='all')
+    if not all_dfs:
+        log.error("All downloads failed!")
+        return pd.DataFrame(), tickers
+    
+    prices = pd.concat(all_dfs, axis=1)
+    prices = prices.loc[:, ~prices.columns.duplicated()].sort_index().ffill()
+    prices = prices.dropna(axis=1, how='all')
     log.info(f"Got {len(prices.columns)} tickers, {len(prices)} days")
     return prices, tickers
