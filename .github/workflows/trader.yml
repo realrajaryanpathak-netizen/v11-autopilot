@@ -2,7 +2,6 @@ name: V11 Trading Bot
 
 on:
   schedule:
-    # Daily crash check: 4:00 UTC = 9:30 AM IST (Mon-Fri)
     - cron: '0 4 * * 1-5'
   workflow_dispatch:
     inputs:
@@ -16,9 +15,14 @@ on:
           - crash-check
           - status
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   trade:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout repo
@@ -33,47 +37,23 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run daily job (scheduled)
-        if: github.event_name == 'schedule'
+      - name: Run bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TRADE_MODE: paper
           INITIAL_CAPITAL: '1000000'
-        run: python daily_job.py
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.action }}" = "rebalance" ]; then
+            python daily_job.py --rebalance
+          else
+            python daily_job.py
+          fi
 
-      - name: Run rebalance (manual)
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'rebalance'
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TRADE_MODE: paper
-          INITIAL_CAPITAL: '1000000'
-        run: python daily_job.py --rebalance
-
-      - name: Run crash check (manual)
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'crash-check'
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TRADE_MODE: paper
-          INITIAL_CAPITAL: '1000000'
-        run: python daily_job.py
-
-      - name: Run status (manual)
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'status'
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TRADE_MODE: paper
-          INITIAL_CAPITAL: '1000000'
-        run: python daily_job.py
-
-      # Save state back to repo (critical — without this, state resets every run)
       - name: Save state to repo
         run: |
           git config user.name "V11 Bot"
           git config user.email "bot@v11.trade"
           git add state.json trades.json 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "📊 state update $(date +%Y-%m-%d)"
+          git diff --staged --quiet || git commit -m "📊 $(date +%Y-%m-%d)"
           git push || true
