@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+state.json
+trades.json
+*.png
+.env
+venv/
