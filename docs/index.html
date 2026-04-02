@@ -5,260 +5,168 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>V11 AutoPilot</title>
 <meta http-equiv="refresh" content="300">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
-body{background:#060d1a;color:#e2e8f0;font-family:'Inter',system-ui,sans-serif;padding:0}
-.wrap{max-width:900px;margin:0 auto;padding:16px}
-.hdr{text-align:center;padding:28px 0 20px;border-bottom:1px solid #1e293b}
-.hdr h1{font-family:'JetBrains Mono',monospace;color:#22d3ee;font-size:24px;font-weight:700;letter-spacing:-0.5px}
-.hdr .sub{color:#475569;font-size:12px;margin-top:6px}
-.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;margin-left:6px}
+:root{--bg:#060d1a;--card:#0c1528;--border:#1e293b;--text:#e2e8f0;--muted:#475569;--cyan:#22d3ee;--green:#10b981;--red:#ef4444;--amber:#f59e0b;--purple:#a855f7}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.hdr{text-align:center;padding:24px 0 16px}
+.hdr h1{font-family:'JetBrains Mono',monospace;color:var(--cyan);font-size:22px;font-weight:700}
+.hdr .sub{color:var(--muted);font-size:11px;margin-top:4px}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;margin-left:6px;text-transform:uppercase}
 .badge-paper{background:#1e3a5f;color:#67e8f9}
-.badge-real{background:#7f1d1d;color:#fca5a5}
-.badge-live{background:#064e3b;color:#6ee7b7;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:20px 0}
-@media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr)}}
-.kpi{background:linear-gradient(135deg,#0c1528,#0f1d35);border:1px solid #1e293b;border-radius:12px;padding:16px;text-align:center}
-.kpi .label{color:#475569;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600}
-.kpi .val{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;margin-top:4px}
-.kpi .val.cyan{color:#22d3ee}
-.kpi .val.green{color:#10b981}
-.kpi .val.red{color:#ef4444}
-.kpi .val.amber{color:#f59e0b}
-.card{background:#0c1528;border:1px solid #1e293b;border-radius:12px;padding:18px;margin:14px 0}
-.card h3{color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.card h3 span{font-size:14px}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(16,185,129,0.4)}50%{opacity:0.7;box-shadow:0 0 0 6px rgba(16,185,129,0)}}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:16px 0}
+@media(max-width:768px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:480px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 8px;text-align:center;transition:border-color 0.3s}
+.kpi:hover{border-color:var(--cyan)}
+.kpi .l{color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600}
+.kpi .v{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;margin-top:3px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+@media(max-width:768px){.row{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin:12px 0}
+.card h3{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;margin-bottom:12px}
 table{width:100%;border-collapse:collapse}
-th{color:#475569;font-size:10px;text-transform:uppercase;letter-spacing:1px;text-align:left;padding:8px;border-bottom:1px solid #1e293b}
-td{padding:10px 8px;border-bottom:1px solid #0f1729;font-size:13px}
-tr:hover{background:#0f172a}
-.ticker{font-family:'JetBrains Mono',monospace;font-weight:700;color:#e2e8f0}
-.cat{font-size:10px;color:#475569;margin-left:4px}
-.buy{color:#10b981;font-weight:700}
-.sell{color:#ef4444;font-weight:700}
-.bar-wrap{display:flex;align-items:center;gap:6px}
-.bar{height:14px;border-radius:3px;background:linear-gradient(90deg,#22d3ee,#0891b2);min-width:2px}
-.signals{display:flex;flex-wrap:wrap;gap:8px}
-.sig{background:#0f1729;border:1px solid #1e293b;border-radius:6px;padding:6px 10px;font-size:12px}
-.sig b{color:#94a3b8}
-.sig .v{font-family:'JetBrains Mono',monospace;color:#22d3ee;margin-left:4px}
-.sig .v.warn{color:#f59e0b}
-.sig .v.danger{color:#ef4444}
-.empty{text-align:center;color:#334155;padding:30px;font-size:14px}
-.footer{text-align:center;color:#1e293b;font-size:11px;margin-top:24px;padding:16px}
-.loading{text-align:center;padding:60px;color:#334155}
-.loading .spin{display:inline-block;width:20px;height:20px;border:2px solid #1e293b;border-top:2px solid #22d3ee;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:12px}
+th{color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px;text-align:left;padding:6px 8px;border-bottom:1px solid var(--border)}
+td{padding:8px;border-bottom:1px solid #0f1729;font-size:12px}
+tr:hover td{background:#0f172a}
+.mono{font-family:'JetBrains Mono',monospace}
+.ticker{font-weight:700}
+.cat{font-size:9px;color:var(--muted);margin-left:4px}
+.green{color:var(--green)}.red{color:var(--red)}.cyan{color:var(--cyan)}.amber{color:var(--amber)}
+.fw7{font-weight:700}
+.signals{display:flex;flex-wrap:wrap;gap:6px}
+.sig{background:#0f1729;border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:11px}
+.sig .k{color:var(--muted);font-size:9px;text-transform:uppercase}
+.sig .v{font-family:'JetBrains Mono',monospace;font-weight:600;font-size:13px;margin-left:6px}
+.wbar{height:14px;border-radius:3px;background:linear-gradient(90deg,var(--cyan),#0891b2);display:inline-block;min-width:2px}
+.chart-wrap{position:relative;height:200px}
+.regime-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
+.regime-dot.crash{background:var(--red)}.regime-dot.choppy{background:var(--amber)}.regime-dot.mild,.regime-dot.strong{background:var(--green)}
+.loading{text-align:center;padding:80px;color:var(--muted)}
+.spinner{width:24px;height:24px;border:2px solid var(--border);border-top:2px solid var(--cyan);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.updated{color:#334155;font-size:11px;text-align:center;margin-top:8px}
-.regime-bar{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
-.regime-bar.crash{background:#ef4444}
-.regime-bar.choppy{background:#f59e0b}
-.regime-bar.mild,.regime-bar.strong{background:#10b981}
+.footer{text-align:center;color:#1e293b;font-size:10px;margin-top:20px;padding:16px}
+.countdown{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:11px;text-align:center;margin-top:10px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="hdr">
-    <h1>V11 AutoPilot <span class="badge badge-paper" id="modeBadge">PAPER</span></h1>
-    <div class="sub">Acceleration Momentum • 31% CAGR Backtest • GitHub Actions Powered</div>
-  </div>
-
-  <div id="loading" class="loading"><div class="spin"></div><br>Loading portfolio...</div>
-  <div id="content" style="display:none">
-
-    <div class="grid">
-      <div class="kpi"><div class="label">Portfolio</div><div class="val cyan" id="kpiPV">—</div></div>
-      <div class="kpi"><div class="label">Return</div><div class="val" id="kpiRet">—</div></div>
-      <div class="kpi"><div class="label">Regime</div><div class="val" id="kpiRegime">—</div></div>
-      <div class="kpi"><div class="label">Cash</div><div class="val cyan" id="kpiCash">—</div></div>
-      <div class="kpi"><div class="label">Positions</div><div class="val cyan" id="kpiPos">—</div></div>
-      <div class="kpi"><div class="label">Last Rebalance</div><div class="val cyan" id="kpiLast" style="font-size:13px">—</div></div>
-    </div>
-
-    <div class="card" id="signalsCard" style="display:none">
-      <h3><span>📊</span> Market Signals</h3>
-      <div class="signals" id="signals"></div>
-    </div>
-
-    <div class="card" id="holdingsCard" style="display:none">
-      <h3><span>💼</span> Holdings</h3>
-      <table><thead><tr><th>Stock</th><th>Shares</th><th>Value</th><th>Weight</th></tr></thead>
-      <tbody id="holdingsBody"></tbody></table>
-    </div>
-
-    <div class="card" id="picksCard" style="display:none">
-      <h3><span>🏆</span> Current Picks</h3>
-      <table><thead><tr><th>#</th><th>Stock</th><th>Momentum</th><th>Acceleration</th></tr></thead>
-      <tbody id="picksBody"></tbody></table>
-    </div>
-
-    <div class="card" id="tradesCard" style="display:none">
-      <h3><span>📝</span> Recent Trades</h3>
-      <table><thead><tr><th>Date</th><th>Action</th><th>Stock</th><th>Shares</th><th>Value</th></tr></thead>
-      <tbody id="tradesBody"></tbody></table>
-    </div>
-
-    <div class="card" id="historyCard" style="display:none">
-      <h3><span>📈</span> Value History</h3>
-      <table><thead><tr><th>Date</th><th>Value</th><th>Regime</th></tr></thead>
-      <tbody id="historyBody"></tbody></table>
-    </div>
-
-    <div class="updated" id="updated"></div>
-  </div>
-
-  <div class="footer">Auto-refreshes every 5 min • Data from GitHub Actions • V11 Acceleration Momentum</div>
+<div class="hdr"><h1><span class="pulse"></span>V11 AutoPilot <span class="badge badge-paper" id="badge">PAPER</span></h1><div class="sub">Acceleration Momentum &bull; 31% CAGR Backtest &bull; Nifty 200</div></div>
+<div id="loading" class="loading"><div class="spinner"></div>Loading portfolio...</div>
+<div id="app" style="display:none">
+<div class="kpi-grid">
+<div class="kpi"><div class="l">Portfolio</div><div class="v cyan" id="kPV"></div></div>
+<div class="kpi"><div class="l">Return</div><div class="v" id="kRet"></div></div>
+<div class="kpi"><div class="l">Regime</div><div class="v" id="kReg"></div></div>
+<div class="kpi"><div class="l">Cash</div><div class="v cyan" id="kCash"></div></div>
+<div class="kpi"><div class="l">Positions</div><div class="v cyan" id="kPos"></div></div>
+<div class="kpi"><div class="l">Next Rebal</div><div class="v cyan" id="kNext" style="font-size:12px"></div></div>
 </div>
-
+<div class="row">
+<div class="card"><h3>📈 Equity Curve</h3><div class="chart-wrap"><canvas id="cEq"></canvas></div></div>
+<div class="card"><h3>🍩 Allocation</h3><div class="chart-wrap"><canvas id="cAlloc"></canvas></div></div>
+</div>
+<div class="card" id="sigC" style="display:none"><h3>📊 Market Signals</h3><div class="signals" id="sigB"></div></div>
+<div class="card" id="holdC" style="display:none"><h3>💼 Holdings &amp; P&amp;L</h3>
+<table><thead><tr><th>Stock</th><th>Shares</th><th>Buy</th><th>Now</th><th>Value</th><th>Weight</th><th>P&amp;L</th></tr></thead><tbody id="holdT"></tbody></table></div>
+<div class="row">
+<div class="card" id="pickC" style="display:none"><h3>🏆 Picks</h3>
+<table><thead><tr><th>#</th><th>Stock</th><th>Mom</th><th>Accel</th></tr></thead><tbody id="pickT"></tbody></table></div>
+<div class="card" id="tradeC" style="display:none"><h3>📝 Trades</h3>
+<table><thead><tr><th>Date</th><th></th><th>Stock</th><th>Qty</th><th>Value</th></tr></thead><tbody id="tradeT"></tbody></table></div>
+</div>
+<div class="card" id="histC" style="display:none"><h3>📅 History</h3><div class="chart-wrap" style="height:150px"><canvas id="cHist"></canvas></div></div>
+<div class="countdown" id="cd"></div>
+</div>
+<div class="footer">Auto-refreshes 5 min &bull; V11 Acceleration Momentum</div>
+</div>
 <script>
-// ── CONFIG: Change this to your GitHub username and repo ──
-const GITHUB_USER = 'realrajaryanpathak-netizen';
-const GITHUB_REPO = 'v11-autopilot';
-const BRANCH = 'main';
+const U='realrajaryanpathak-netizen',R='v11-autopilot',B='main';
+const RAW=`https://raw.githubusercontent.com/${U}/${R}/${B}`;
+const fmt=n=>'₹'+Math.round(n).toLocaleString('en-IN');
+const fK=n=>n>=1e5?'₹'+(n/1e5).toFixed(1)+'L':n>=1e3?'₹'+(n/1e3).toFixed(0)+'K':fmt(n);
+let ch1,ch2,ch3;
+function rc(r){return r==='CRASH'?'red':r==='CHOPPY'?'amber':'green'}
+function nextReb(){const now=new Date(),n=new Date(now.getFullYear(),now.getMonth()+1,1,10);if(now.getDate()===1&&now.getHours()<10)n.setMonth(now.getMonth());const d=Math.floor((n-now)/864e5),h=Math.floor((n-now)%864e5/36e5);return d>0?d+'d '+h+'h':h+'h'}
 
-const RAW = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${BRANCH}`;
+async function load(){
+try{
+const[sR,tR]=await Promise.all([fetch(`${RAW}/state.json?t=${Date.now()}`),fetch(`${RAW}/trades.json?t=${Date.now()}`)]);
+if(!sR.ok)throw new Error('Run bot first: Actions → V11 Trading Bot → rebalance');
+const st=await sR.json(),trades=tR.ok?await tR.json():[];
+const hist=st.history||[],snap=st.holdings_snapshot||[];
+const inc=st.inception_value||1e6;
+const lastPV=hist.length?hist[hist.length-1].value:inc;
+const ret=((lastPV/inc)-1)*100;
+const nP=Object.keys(st.holdings||{}).length;
+const reg=st.regime||'?';
 
-function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+document.getElementById('kPV').textContent=fmt(lastPV);
+const rE=document.getElementById('kRet');rE.textContent=(ret>=0?'+':'')+ret.toFixed(1)+'%';rE.className='v '+(ret>=0?'green':'red');
+document.getElementById('kReg').innerHTML=`<span class="regime-dot ${reg.toLowerCase()}"></span>${reg}`;document.getElementById('kReg').className='v '+rc(reg);
+document.getElementById('kCash').textContent=fK(st.cash||0);
+document.getElementById('kPos').textContent=nP;
+document.getElementById('kNext').textContent=nextReb();
 
-async function load() {
-  try {
-    const [stateRes, tradesRes] = await Promise.all([
-      fetch(`${RAW}/state.json?t=${Date.now()}`),
-      fetch(`${RAW}/trades.json?t=${Date.now()}`)
-    ]);
+// Signals
+const det=st.details||{},sB=document.getElementById('sigB');sB.innerHTML='';
+const th={VIX:[20,28],Breadth:[0.35,0.2],RealVol:[0.25,0.35],NiftyMom:[-0.05,-0.15]};
+for(const[k,v]of Object.entries(det)){
+let c='cyan';if(th[k]){const[w,d]=th[k];const n=parseFloat(v);
+if(k==='Breadth'||k==='NiftyMom'){c=n<d?'red':n<w?'amber':'green'}else{c=n>d?'red':n>w?'amber':'green'}}
+if(k==='CrashScore'){c=parseInt(v)>=3?'red':parseInt(v)>=1?'amber':'green'}
+sB.innerHTML+=`<div class="sig"><span class="k">${k}</span><span class="v ${c}">${v}</span></div>`}
+if(Object.keys(det).length)document.getElementById('sigC').style.display='';
 
-    if (!stateRes.ok) throw new Error('state.json not found — run the bot first');
-    const st = await stateRes.json();
-    const trades = tradesRes.ok ? await tradesRes.json() : [];
+// Holdings
+const hT=document.getElementById('holdT');hT.innerHTML='';
+if(snap.length){
+let totalPnl=0;
+snap.forEach(h=>{const pc=h.pnl_pct>=0?'green':'red';const ic=h.pnl_pct>=0?'▲':'▼';totalPnl+=h.pnl_abs;
+hT.innerHTML+=`<tr><td><span class="ticker">${h.ticker}</span><span class="cat">${h.category==='Safe'?'🛡️':'🇮🇳'}</span></td>
+<td class="mono">${h.shares}</td><td class="mono">₹${h.buy_price}</td><td class="mono">₹${h.price}</td>
+<td class="mono fw7">${fmt(h.value)}</td><td>${h.weight}% <span class="wbar" style="width:${h.weight*2.5}px"></span></td>
+<td class="mono ${pc} fw7">${ic} ${h.pnl_pct>=0?'+':''}${h.pnl_pct}% <small style="opacity:0.6">(${fmt(h.pnl_abs)})</small></td></tr>`});
+hT.innerHTML+=`<tr style="border-top:2px solid var(--border)"><td colspan="5"></td><td class="fw7">Total</td><td class="mono ${totalPnl>=0?'green':'red'} fw7">${fmt(totalPnl)}</td></tr>`;
+document.getElementById('holdC').style.display='';
+}else if(nP>0){for(const[t,s]of Object.entries(st.holdings||{})){
+hT.innerHTML+=`<tr><td><span class="ticker">${t}</span></td><td class="mono">${s}</td><td>—</td><td>—</td><td>—</td><td>~${(100/nP).toFixed(0)}%</td><td>—</td></tr>`}
+document.getElementById('holdC').style.display=''}
 
-    // Mode
-    const mode = st.mode || 'paper';
-    document.getElementById('modeBadge').textContent = mode.toUpperCase();
-    document.getElementById('modeBadge').className = `badge badge-${mode}`;
+// Allocation donut
+if(snap.length){const lb=snap.map(h=>h.ticker.replace('.NS',''));const dt=snap.map(h=>h.weight);
+const cl=['#22d3ee','#10b981','#a855f7','#f59e0b','#ef4444','#6366f1'];
+if(ch2)ch2.destroy();ch2=new Chart(document.getElementById('cAlloc'),{type:'doughnut',data:{labels:lb,datasets:[{data:dt,backgroundColor:cl,borderWidth:0}]},
+options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{color:'#94a3b8',font:{size:10},boxWidth:10,padding:6}}}}})}
 
-    // KPIs
-    const pv = st.cash + Object.values(st.holdings || {}).reduce((a, b) => a + 0, 0); // Approximate
-    const inception = st.inception_value || 1000000;
-    const lastPV = st.history && st.history.length > 0 ? st.history[st.history.length - 1].value : inception;
-    const ret = ((lastPV / inception) - 1) * 100;
-    
-    document.getElementById('kpiPV').textContent = fmt(lastPV);
-    
-    const retEl = document.getElementById('kpiRet');
-    retEl.textContent = (ret >= 0 ? '+' : '') + ret.toFixed(1) + '%';
-    retEl.className = 'val ' + (ret >= 0 ? 'green' : 'red');
+// Equity curve
+if(hist.length>1){const lb=hist.map(h=>h.date.substring(5));const vl=hist.map(h=>h.value);
+if(ch1)ch1.destroy();ch1=new Chart(document.getElementById('cEq'),{type:'line',data:{labels:lb,datasets:[{data:vl,borderColor:'#22d3ee',backgroundColor:'rgba(34,211,238,0.08)',fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:'#22d3ee',borderWidth:2}]},
+options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#475569',font:{size:9}},grid:{color:'#1e293b33'}},y:{ticks:{color:'#475569',callback:v=>fK(v)},grid:{color:'#1e293b33'}}},plugins:{legend:{display:false}}}})}
 
-    const regime = st.regime || '?';
-    const regimeEl = document.getElementById('kpiRegime');
-    const rc = regime === 'CRASH' ? 'red' : regime === 'CHOPPY' ? 'amber' : 'green';
-    regimeEl.innerHTML = `<span class="regime-bar ${regime.toLowerCase()}"></span>${regime}`;
-    regimeEl.className = 'val ' + rc;
+// Picks
+const pks=st.picks||[];const pT=document.getElementById('pickT');pT.innerHTML='';
+if(pks.length){pks.forEach((p,i)=>{pT.innerHTML+=`<tr><td class="mono cyan">${i+1}</td><td><span class="ticker">${p.ticker}</span></td><td class="mono green fw7">+${p.momentum}%</td><td class="mono ${p.acceleration>0?'green':'red'} fw7">${p.acceleration>0?'+':''}${p.acceleration}%</td></tr>`});document.getElementById('pickC').style.display=''}
 
-    document.getElementById('kpiCash').textContent = fmt(st.cash || 0);
-    document.getElementById('kpiPos').textContent = Object.keys(st.holdings || {}).length;
-    document.getElementById('kpiLast').textContent = (st.last_rebalance || 'Never').substring(0, 16);
+// Trades
+const rec=trades.slice(-8).reverse();const tT=document.getElementById('tradeT');tT.innerHTML='';
+if(rec.length){rec.forEach(t=>{const c=t.action==='BUY'?'green':'red';tT.innerHTML+=`<tr><td style="font-size:10px;color:var(--muted)">${(t.time||'').substring(5)}</td><td class="${c} fw7">${t.action==='BUY'?'▲':'▼'}</td><td><span class="ticker">${t.ticker}</span></td><td class="mono">${t.shares}</td><td class="mono">${fmt(t.value)}</td></tr>`});document.getElementById('tradeC').style.display=''}
 
-    // Signals
-    const details = st.details || {};
-    const sigEl = document.getElementById('signals');
-    sigEl.innerHTML = '';
-    const dangerKeys = { CrashScore: v => parseInt(v) >= 3, VIX: v => v > 28, Breadth: v => v < 0.2 };
-    const warnKeys = { VIX: v => v > 20, Breadth: v => v < 0.35 };
-    
-    for (const [k, v] of Object.entries(details)) {
-      const cls = dangerKeys[k] && dangerKeys[k](v) ? 'danger' : warnKeys[k] && warnKeys[k](v) ? 'warn' : '';
-      sigEl.innerHTML += `<div class="sig"><b>${k}</b><span class="v ${cls}">${v}</span></div>`;
-    }
-    if (Object.keys(details).length > 0) document.getElementById('signalsCard').style.display = '';
+// History bar
+if(hist.length>1){const lb=hist.map(h=>h.date.substring(5));const vl=hist.map(h=>h.value);
+const cl=hist.map(h=>(h.regime||'').includes('CRASH')?'#ef4444':h.regime==='CHOPPY'?'#f59e0b':'#22d3ee');
+if(ch3)ch3.destroy();ch3=new Chart(document.getElementById('cHist'),{type:'bar',data:{labels:lb,datasets:[{data:vl,backgroundColor:cl,borderRadius:4}]},
+options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#475569',font:{size:9}},grid:{display:false}},y:{ticks:{color:'#475569',callback:v=>fK(v)},grid:{color:'#1e293b33'}}},plugins:{legend:{display:false}}}});
+document.getElementById('histC').style.display=''}
 
-    // Holdings (from last known state — no live prices, just show what we hold)
-    const holdings = st.holdings || {};
-    const hBody = document.getElementById('holdingsBody');
-    hBody.innerHTML = '';
-    const tickers = Object.keys(holdings);
-    if (tickers.length > 0) {
-      // Get weights from history
-      const totalShares = tickers.length;
-      tickers.forEach(t => {
-        const shares = holdings[t];
-        const cat = t === 'GOLDBEES.NS' ? '🛡️' : '🇮🇳';
-        hBody.innerHTML += `<tr>
-          <td><span class="ticker">${t}</span> <span class="cat">${cat}</span></td>
-          <td>${shares}</td>
-          <td>—</td>
-          <td>~${(100/totalShares).toFixed(0)}%</td>
-        </tr>`;
-      });
-      document.getElementById('holdingsCard').style.display = '';
-    }
-
-    // Picks
-    const picks = st.picks || [];
-    const pBody = document.getElementById('picksBody');
-    pBody.innerHTML = '';
-    if (picks.length > 0) {
-      picks.forEach((p, i) => {
-        pBody.innerHTML += `<tr>
-          <td>${i + 1}</td>
-          <td><span class="ticker">${p.ticker}</span></td>
-          <td class="buy">+${p.momentum}%</td>
-          <td style="color:${p.acceleration > 0 ? '#10b981' : '#ef4444'}">${p.acceleration > 0 ? '+' : ''}${p.acceleration}%</td>
-        </tr>`;
-      });
-      document.getElementById('picksCard').style.display = '';
-    }
-
-    // Trades
-    const tBody = document.getElementById('tradesBody');
-    tBody.innerHTML = '';
-    const recentTrades = trades.slice(-10).reverse();
-    if (recentTrades.length > 0) {
-      recentTrades.forEach(t => {
-        tBody.innerHTML += `<tr>
-          <td style="font-size:11px;color:#475569">${t.time}</td>
-          <td class="${t.action === 'BUY' ? 'buy' : 'sell'}">${t.action}</td>
-          <td><span class="ticker">${t.ticker}</span></td>
-          <td>${t.shares}</td>
-          <td>${fmt(t.value)}</td>
-        </tr>`;
-      });
-      document.getElementById('tradesCard').style.display = '';
-    }
-
-    // History
-    const hist = (st.history || []).slice(-10).reverse();
-    const histBody = document.getElementById('historyBody');
-    histBody.innerHTML = '';
-    if (hist.length > 0) {
-      hist.forEach(h => {
-        const rClass = h.regime === 'CRASH' || h.regime === 'CRASH_EXIT' ? 'red' : 
-                       h.regime === 'CHOPPY' ? 'amber' : 'green';
-        histBody.innerHTML += `<tr>
-          <td>${h.date}</td>
-          <td style="font-family:'JetBrains Mono',monospace">${fmt(h.value)}</td>
-          <td><span class="regime-bar ${(h.regime||'').toLowerCase()}"></span>${h.regime || ''}</td>
-        </tr>`;
-      });
-      document.getElementById('historyCard').style.display = '';
-    }
-
-    document.getElementById('updated').textContent = `Last updated: ${new Date().toLocaleString()}`;
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('content').style.display = '';
-
-  } catch (e) {
-    document.getElementById('loading').innerHTML = 
-      `<div style="color:#ef4444">⚠️ ${e.message}</div>
-       <div style="color:#475569;margin-top:12px;font-size:12px">
-         Run the bot first: Actions → V11 Trading Bot → Run workflow → rebalance
-       </div>`;
-  }
-}
-
-load();
-setInterval(load, 300000); // Refresh every 5 min
+document.getElementById('cd').textContent='Next rebalance: '+nextReb()+' • Updated '+new Date().toLocaleTimeString();
+document.getElementById('loading').style.display='none';document.getElementById('app').style.display='';
+}catch(e){document.getElementById('loading').innerHTML=`<div style="color:var(--red)">⚠️ ${e.message}</div><div style="color:var(--muted);margin-top:12px;font-size:12px">Actions → V11 Trading Bot → Run workflow → rebalance</div>`}}
+load();setInterval(load,300000);
 </script>
-</body>
-</html>
+</body></html>
