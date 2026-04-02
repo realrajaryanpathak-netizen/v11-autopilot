@@ -1,78 +1,84 @@
-"""
-Single daily script for GitHub Actions.
-- Every weekday: crash check + Telegram status
-- 1st of month: full rebalance
-- Can also run manually: python daily_job.py --rebalance
-"""
-import sys, os, logging
-from datetime import datetime
+"""Data layer — downloads prices in batches to avoid rate limits."""
+import pandas as pd
+import numpy as np
+import logging
+import time
 
-# Ensure we're in the right directory
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-from config import *
-from data import download_prices, get_nifty200_tickers
-from strategy import generate_signals, detect_regime, safe_pick
-from portfolio import *
-import alerts
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(message)s')
 log = logging.getLogger(__name__)
 
-def main():
-    force_rebalance = "--rebalance" in sys.argv
-    today = datetime.now()
-    is_first = today.day == 1
+def get_nifty200_tickers():
+    """Get current Nifty 200 constituents from NSE."""
+    try:
+        url = "https://archives.nseindia.com/content/indices/ind_nifty200list.csv"
+        df = pd.read_csv(url)
+        tickers = [f"{s.strip()}.NS" for s in df['Symbol'].tolist()]
+        log.info(f"Loaded {len(tickers)} Nifty 200 tickers from NSE")
+        return tickers
+    except Exception as e:
+        log.warning(f"NSE download failed ({e}), using fallback")
+    
+    return [
+        "RELIANCE.NS","TCS.NS","HDFCBANK.NS","INFY.NS","ICICIBANK.NS",
+        "BHARTIARTL.NS","SBIN.NS","ITC.NS","LT.NS","BAJFINANCE.NS",
+        "HINDUNILVR.NS","MARUTI.NS","KOTAKBANK.NS","HCLTECH.NS","AXISBANK.NS",
+        "SUNPHARMA.NS","TITAN.NS","ASIANPAINT.NS","WIPRO.NS","NTPC.NS",
+        "ONGC.NS","POWERGRID.NS","TATASTEEL.NS","ADANIENT.NS","JSWSTEEL.NS",
+        "ULTRACEMCO.NS","NESTLEIND.NS","DIVISLAB.NS","TRENT.NS","BAJAJFINSV.NS",
+        "TATAMOTORS.NS","COALINDIA.NS","INDUSINDBK.NS","VEDL.NS","HINDALCO.NS",
+        "PNB.NS","BANKBARODA.NS","CANBK.NS","PFC.NS","RECLTD.NS",
+        "BHEL.NS","SAIL.NS","MUTHOOTFIN.NS","PERSISTENT.NS","COFORGE.NS",
+        "PIIND.NS","ASTRAL.NS","DEEPAKNTR.NS","NAUKRI.NS","GODREJPROP.NS",
+    ]
 
-    log.info(f"V11 Daily Job | {today.strftime('%Y-%m-%d %H:%M')} | Rebalance: {is_first or force_rebalance}")
-
-    # Download
-    universe = get_nifty200_tickers()
-    prices, _ = download_prices(universe)
-
-    # Load state
-    st = load_state()
-    regime, details = detect_regime(prices)
-    st["regime"] = regime
-    st["details"] = details
-    pv = portfolio_value(st, prices)
-    ret = (pv / st["inception_value"] - 1) * 100 if st["inception_value"] > 0 else 0
-
-    log.info(f"PV=₹{pv:,.0f} | Regime={regime} | Return={ret:+.1f}%")
-
-    # MONTHLY REBALANCE (1st of month OR manual trigger)
-    if is_first or force_rebalance:
-        log.info("🔄 Running rebalance...")
-        target, regime, picks, details = generate_signals(prices, universe)
-        st["regime"] = regime
-        st["details"] = details
-        st["picks"] = picks
-        trades = execute_rebalance(st, target, prices)
-        pv = portfolio_value(st, prices)
-        ret = (pv / st["inception_value"] - 1) * 100 if st["inception_value"] > 0 else 0
-        st["last_rebalance"] = today.strftime("%Y-%m-%d %H:%M")
-        st["history"].append({"date": today.strftime("%Y-%m-%d"), "value": round(pv, 2), "regime": regime})
-        save_state(st)
-        tl = load_trades(); tl.extend(trades); save_trades(tl)
-        alerts.alert_rebalance(regime, pv, ret, picks, trades, MODE)
-        log.info(f"✅ Rebalance done. {len(trades)} trades.")
-
-    # CRASH EXIT
-    elif regime == "CRASH" and st["holdings"]:
-        log.info("🚨 CRASH detected — exiting!")
-        target = safe_pick(prices, len(prices) - 1)
-        trades = execute_rebalance(st, target, prices)
-        pv = portfolio_value(st, prices)
-        st["history"].append({"date": today.strftime("%Y-%m-%d"), "value": round(pv, 2), "regime": "CRASH_EXIT"})
-        save_state(st)
-        tl = load_trades(); tl.extend(trades); save_trades(tl)
-        alerts.alert_crash(regime, details, trades, MODE)
-
-    # NORMAL DAY — just report status
-    else:
-        save_state(st)
-        alerts.alert_daily(regime, pv, ret, details, MODE)
-        log.info("✅ No action needed.")
-
-if __name__ == "__main__":
-    main()
+def download_prices(tickers=None, period="2y"):
+    """Download prices in batches of 20 to avoid rate limits."""
+    import yfinance as yf
+    from config import SAFE_HAVENS, SIGNAL_TICKERS
+    
+    if tickers is None:
+        tickers = get_nifty200_tickers()
+    
+    all_tickers = list(set(tickers + SAFE_HAVENS + SIGNAL_TICKERS))
+    log.info(f"Downloading {len(all_tickers)} tickers in batches...")
+    
+    # Download in batches of 20
+    BATCH = 20
+    all_dfs = []
+    
+    for i in range(0, len(all_tickers), BATCH):
+        batch = all_tickers[i:i+BATCH]
+        attempt = 0
+        while attempt < 3:
+            try:
+                data = yf.download(batch, period=period, auto_adjust=True,
+                                   threads=True, progress=False)
+                if isinstance(data.columns, pd.MultiIndex):
+                    df = data['Close']
+                elif not data.empty:
+                    df = pd.DataFrame(data['Close'])
+                else:
+                    df = pd.DataFrame()
+                
+                if not df.empty:
+                    all_dfs.append(df)
+                    log.info(f"  Batch {i//BATCH+1}: {len(df.columns)} tickers OK")
+                break
+            except Exception as e:
+                attempt += 1
+                wait = 5 * attempt
+                log.warning(f"  Batch {i//BATCH+1} failed (attempt {attempt}): {e}. Waiting {wait}s...")
+                time.sleep(wait)
+        
+        # Small delay between batches
+        if i + BATCH < len(all_tickers):
+            time.sleep(2)
+    
+    if not all_dfs:
+        log.error("All downloads failed!")
+        return pd.DataFrame(), tickers
+    
+    prices = pd.concat(all_dfs, axis=1)
+    prices = prices.loc[:, ~prices.columns.duplicated()].sort_index().ffill()
+    prices = prices.dropna(axis=1, how='all')
+    log.info(f"Got {len(prices.columns)} tickers, {len(prices)} days")
+    return prices, tickers
