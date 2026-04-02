@@ -1,13 +1,13 @@
 """
-Single daily script for GitHub Actions.
+V11 Daily Job — GitHub Actions.
+Downloads all 209 tickers via Twelve Data (~28 min on free tier).
 - Every weekday: crash check + Telegram status
 - 1st of month: full rebalance
-- Can also run manually: python daily_job.py --rebalance
+- Manual: python daily_job.py --rebalance
 """
 import sys, os, logging
 from datetime import datetime
 
-# Ensure we're in the right directory
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 from config import *
@@ -26,7 +26,7 @@ def main():
 
     log.info(f"V11 Daily Job | {today.strftime('%Y-%m-%d %H:%M')} | Rebalance: {is_first or force_rebalance}")
 
-    # Download
+    # Download all tickers (~28 min on free Twelve Data)
     universe = get_nifty200_tickers()
     prices, _ = download_prices(universe)
 
@@ -73,7 +73,7 @@ def main():
         tl = load_trades(); tl.extend(trades); save_trades(tl)
         alerts.alert_crash(regime, details, trades, MODE)
 
-    # NORMAL DAY — just report status
+    # NORMAL DAY
     else:
         save_state(st)
         alerts.alert_daily(regime, pv, ret, details, MODE)
