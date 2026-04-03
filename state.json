@@ -9,13 +9,13 @@
   },
   "inception": "2026-04-02",
   "inception_value": 1000000,
-  "last_rebalance": "2026-04-02 21:39",
+  "last_rebalance": "2026-04-03 08:30",
   "regime": "CHOPPY",
   "details": {
     "VIX": 24.5,
     "LQD/JNK": 1.138,
-    "Breadth": 0.283,
-    "RealVol": 0.305,
+    "Breadth": 0.278,
+    "RealVol": 0.309,
     "NiftyMom": -0.139,
     "CrashScore": "0/7"
   },
@@ -46,7 +46,70 @@
       "date": "2026-04-02",
       "value": 998502.08,
       "regime": "CHOPPY"
+    },
+    {
+      "date": "2026-04-03",
+      "value": 998502.08,
+      "regime": "CHOPPY"
     }
   ],
-  "fund_adds": []
+  "fund_adds": [],
+  "buy_prices": {},
+  "holdings_snapshot": [
+    {
+      "ticker": "BHARATFORG.NS",
+      "shares": 145,
+      "price": 1642.6,
+      "buy_price": 1642.6,
+      "value": 238177.0,
+      "weight": 23.9,
+      "pnl_pct": 0.0,
+      "pnl_abs": 0.0,
+      "category": "India"
+    },
+    {
+      "ticker": "GOLDBEES.NS",
+      "shares": 1658,
+      "price": 120.58,
+      "buy_price": 120.58,
+      "value": 199921.64,
+      "weight": 20.0,
+      "pnl_pct": 0.0,
+      "pnl_abs": 0.0,
+      "category": "Safe"
+    },
+    {
+      "ticker": "VEDL.NS",
+      "shares": 289,
+      "price": 687.65,
+      "buy_price": 687.65,
+      "value": 198730.86,
+      "weight": 19.9,
+      "pnl_pct": 0.0,
+      "pnl_abs": 0.0,
+      "category": "India"
+    },
+    {
+      "ticker": "SHRIRAMFIN.NS",
+      "shares": 221,
+      "price": 891.6,
+      "buy_price": 891.6,
+      "value": 197043.59,
+      "weight": 19.7,
+      "pnl_pct": 0.0,
+      "pnl_abs": 0.0,
+      "category": "India"
+    },
+    {
+      "ticker": "NATIONALUM.NS",
+      "shares": 410,
+      "price": 401.8,
+      "buy_price": 401.8,
+      "value": 164737.99,
+      "weight": 16.5,
+      "pnl_pct": 0.0,
+      "pnl_abs": 0.0,
+      "category": "India"
+    }
+  ]
 }
