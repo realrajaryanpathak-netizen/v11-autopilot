@@ -1,7 +1,8 @@
-"""Data layer — yfinance + cache fallback for GitHub Actions."""
+"""Data layer — yfinance with batching + cache fallback."""
 import pandas as pd
 import numpy as np
 import logging
+import time
 import os
 
 log = logging.getLogger(__name__)
@@ -37,16 +38,18 @@ def get_nifty200_tickers():
     ]
 
 def download_prices(tickers=None, period="2y"):
+    """Try yfinance (single call first, then batch if fails), cache as final fallback."""
+    import yfinance as yf
     from config import SAFE_HAVENS, SIGNAL_TICKERS
 
     if tickers is None:
         tickers = get_nifty200_tickers()
     all_tickers = list(set(tickers + SAFE_HAVENS + SIGNAL_TICKERS))
+    total = len(all_tickers)
 
-    # Try yfinance
+    # Attempt 1: single call (fast, works locally and sometimes on GitHub)
     try:
-        import yfinance as yf
-        log.info(f"yfinance: {len(all_tickers)} tickers...")
+        log.info(f"yfinance: {total} tickers (single call)...")
         data = yf.download(all_tickers, period=period, auto_adjust=True,
                            threads=True, progress=False)
         if isinstance(data.columns, pd.MultiIndex):
@@ -60,16 +63,68 @@ def download_prices(tickers=None, period="2y"):
             prices.to_csv(CACHE_FILE)
             return prices, tickers
 
-        log.warning(f"yfinance: only {len(prices.columns)} tickers, checking cache...")
+        log.warning(f"Only {len(prices.columns)} tickers, trying batch mode...")
     except Exception as e:
-        log.warning(f"yfinance failed: {e}")
+        log.warning(f"Single call failed: {e}, trying batch mode...")
 
-    # Fallback: read cache
+    # Attempt 2: batch download (5 at a time, 15s delay)
+    BATCH = 5
+    DELAY = 15
+    all_dfs = []
+    failed = []
+    total_batches = (total + BATCH - 1) // BATCH
+    log.info(f"yfinance batch mode: {total} tickers, {total_batches} batches, ~{total_batches * DELAY // 60} min...")
+
+    for i in range(0, total, BATCH):
+        batch = all_tickers[i:i+BATCH]
+        batch_num = i // BATCH + 1
+        success = False
+
+        for attempt in range(3):
+            try:
+                data = yf.download(batch, period=period, auto_adjust=True,
+                                   threads=False, progress=False)
+                if data.empty:
+                    raise ValueError("Empty result")
+                if len(batch) == 1:
+                    df = pd.DataFrame(data['Close'])
+                    df.columns = batch
+                elif isinstance(data.columns, pd.MultiIndex):
+                    df = data['Close']
+                else:
+                    df = pd.DataFrame(data['Close'])
+                if not df.empty:
+                    all_dfs.append(df)
+                    log.info(f"  [{batch_num}/{total_batches}] {[t.replace('.NS','')[:10] for t in batch]}")
+                    success = True
+                    break
+            except Exception as e:
+                wait = DELAY * (attempt + 1)
+                log.warning(f"  [{batch_num}] attempt {attempt+1} failed: {str(e)[:60]}. Wait {wait}s")
+                time.sleep(wait)
+
+        if not success:
+            failed.extend(batch)
+
+        if i + BATCH < total:
+            time.sleep(DELAY)
+
+    if all_dfs:
+        prices = pd.concat(all_dfs, axis=1)
+        prices = prices.loc[:, ~prices.columns.duplicated()].sort_index().ffill()
+        prices = prices.dropna(axis=1, how='all')
+        log.info(f"✅ Batch done: {len(prices.columns)}/{total} tickers, {len(prices)} days")
+        if failed:
+            log.warning(f"Failed ({len(failed)}): {failed[:10]}...")
+        prices.to_csv(CACHE_FILE)
+        return prices, tickers
+
+    # Attempt 3: read cache
     if os.path.exists(CACHE_FILE):
         log.info("Using cached prices from prices_cache.csv")
         prices = pd.read_csv(CACHE_FILE, index_col=0, parse_dates=True)
         log.info(f"✅ Cache: {len(prices.columns)} tickers, {len(prices)} days")
         return prices, tickers
 
-    log.error("No data: yfinance failed and no cache. Run update_prices.py locally first.")
+    log.error("All methods failed. Run update_prices.py locally first.")
     return pd.DataFrame(), tickers
