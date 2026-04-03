@@ -9,13 +9,13 @@
   },
   "inception": "2026-04-02",
   "inception_value": 1000000,
-  "last_rebalance": "2026-04-03 08:30",
+  "last_rebalance": "2026-04-03 08:45",
   "regime": "CHOPPY",
   "details": {
     "VIX": 24.5,
     "LQD/JNK": 1.138,
-    "Breadth": 0.278,
-    "RealVol": 0.309,
+    "Breadth": 0.283,
+    "RealVol": 0.314,
     "NiftyMom": -0.139,
     "CrashScore": "0/7"
   },
@@ -44,6 +44,11 @@
   "history": [
     {
       "date": "2026-04-02",
+      "value": 998502.08,
+      "regime": "CHOPPY"
+    },
+    {
+      "date": "2026-04-03",
       "value": 998502.08,
       "regime": "CHOPPY"
     },
