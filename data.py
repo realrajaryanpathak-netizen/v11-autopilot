@@ -47,25 +47,7 @@ def download_prices(tickers=None, period="2y"):
     all_tickers = list(set(tickers + SAFE_HAVENS + SIGNAL_TICKERS))
     total = len(all_tickers)
 
-    # Attempt 1: single call (fast, works locally and sometimes on GitHub)
-    try:
-        log.info(f"yfinance: {total} tickers (single call)...")
-        data = yf.download(all_tickers, period=period, auto_adjust=True,
-                           threads=True, progress=False)
-        if isinstance(data.columns, pd.MultiIndex):
-            prices = data['Close']
-        else:
-            prices = pd.DataFrame(data['Close'])
-        prices = prices.ffill().dropna(axis=1, how='all')
-
-        if len(prices.columns) > 10:
-            log.info(f"✅ yfinance: {len(prices.columns)} tickers, {len(prices)} days")
-            prices.to_csv(CACHE_FILE)
-            return prices, tickers
-
-        log.warning(f"Only {len(prices.columns)} tickers, trying batch mode...")
-    except Exception as e:
-        log.warning(f"Single call failed: {e}, trying batch mode...")
+    
 
     # Attempt 2: batch download (5 at a time, 15s delay)
     BATCH = 5
