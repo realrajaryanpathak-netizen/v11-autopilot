@@ -43,6 +43,10 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+          ANGEL_API_KEY: ${{ secrets.ANGEL_API_KEY }}
+          ANGEL_CLIENT_ID: ${{ secrets.ANGEL_CLIENT_ID }}
+          ANGEL_PASSWORD: ${{ secrets.ANGEL_PASSWORD }}
+          ANGEL_TOTP_SECRET: ${{ secrets.ANGEL_TOTP_SECRET }}
           TRADE_MODE: paper
           INITIAL_CAPITAL: '1000000'
         run: |
@@ -56,6 +60,6 @@ jobs:
         run: |
           git config user.name "V11 Bot"
           git config user.email "bot@v11.trade"
-          git add state.json trades.json 2>/dev/null || true
+          git add state.json trades.json prices_cache.csv 2>/dev/null || true
           git diff --staged --quiet || git commit -m "📊 $(date +%Y-%m-%d)"
           git push || true

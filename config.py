@@ -1,10 +1,11 @@
-
 """Central configuration — all settings in one place."""
 import os
 
+from dotenv import load_dotenv
+load_dotenv()
 
 # ═══════════════════════════════════════════
-# ENVIRONMENT (set these on Railway)
+# ENVIRONMENT (set these as GitHub Secrets)
 # ═══════════════════════════════════════════
 ANGEL_API_KEY     = os.environ.get("ANGEL_API_KEY", "")
 ANGEL_CLIENT_ID   = os.environ.get("ANGEL_CLIENT_ID", "")
@@ -33,15 +34,12 @@ REBAL_THRESH  = 0.03
 VIX_HIGH      = 28
 VIX_LOW       = 15
 RVOL_CRASH    = 0.35
-CREDIT_STRESS = 1.45
 DD_TRIGGER    = -0.25
 DD_SCALE      = 0.50
 
 # ═══════════════════════════════════════════
 # UNIVERSE
 # ═══════════════════════════════════════════
-# For LIVE: we download Nifty 200 dynamically
-# For BACKTEST: fixed 61 survivorship-free stocks
 BACKTEST_STOCKS = [
     "ADANIENT.NS","BAJFINANCE.NS","HDFCBANK.NS","HINDUNILVR.NS",
     "ICICIBANK.NS","INFY.NS","ITC.NS","LT.NS","MARUTI.NS",
@@ -61,7 +59,16 @@ BACKTEST_STOCKS = [
 ]
 
 SAFE_HAVENS    = ["GOLDBEES.NS"]
-SIGNAL_TICKERS = ["^VIX","^INDIAVIX","^NSEI","^NSEBANK","^TNX","^IRX","LQD","JNK"]
+
+# India VIX and Nifty 50 — fetched from Angel One (no yfinance needed)
+SIGNAL_TICKERS = ["INDIA VIX", "NIFTY"]
+
+# Angel One symbol tokens for indices
+INDEX_TOKENS = {
+    "INDIA VIX": {"token": "26017", "exchange": "NSE"},
+    "NIFTY":     {"token": "99926000", "exchange": "NSE"},
+    "BANKNIFTY": {"token": "99926009", "exchange": "NSE"},
+}
 
 # Files
 STATE_FILE     = "state.json"

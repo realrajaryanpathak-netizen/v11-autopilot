@@ -1,4 +1,13 @@
-"""Data layer — yfinance with batching + cache fallback."""
+"""
+Data layer — Angel One SmartAPI only. No yfinance.
+
+Flow:
+1. Load cache from prices_cache.csv (persisted via git commit)
+2. If cache is fresh (< 6 hours) → use it (0 API calls)
+3. If cache exists but stale → fetch last 10 days from Angel One, merge
+4. If no cache → full download from Angel One (~200 tickers, ~70 seconds)
+5. Save cache for next run
+"""
 import pandas as pd
 import numpy as np
 import logging
@@ -8,6 +17,7 @@ import os
 log = logging.getLogger(__name__)
 
 CACHE_FILE = "prices_cache.csv"
+
 
 def get_nifty200_tickers():
     try:
@@ -37,76 +47,163 @@ def get_nifty200_tickers():
         "HAL.NS","BEL.NS","POLYCAB.NS","DIXON.NS","BSE.NS",
     ]
 
+
+def _load_cache():
+    """Load cached prices if they exist."""
+    if not os.path.exists(CACHE_FILE):
+        return None
+    try:
+        prices = pd.read_csv(CACHE_FILE, index_col=0, parse_dates=True)
+        age_hours = (time.time() - os.path.getmtime(CACHE_FILE)) / 3600
+        log.info(f"Cache loaded: {len(prices.columns)} tickers, {len(prices)} days, {age_hours:.1f}h old")
+        return prices
+    except Exception as e:
+        log.warning(f"Cache read error: {e}")
+        return None
+
+
+def _save_cache(prices):
+    """Save prices to cache file."""
+    try:
+        prices.to_csv(CACHE_FILE)
+        log.info(f"Cache saved: {len(prices.columns)} tickers, {len(prices)} days")
+    except Exception as e:
+        log.warning(f"Cache save error: {e}")
+
+
+def _get_broker():
+    """Login to Angel One and return broker instance."""
+    from config import ANGEL_API_KEY, ANGEL_CLIENT_ID, ANGEL_PASSWORD, ANGEL_TOTP_SECRET
+
+    if not all([ANGEL_API_KEY, ANGEL_CLIENT_ID, ANGEL_PASSWORD, ANGEL_TOTP_SECRET]):
+        log.error("Angel One credentials not set! Add them as GitHub Secrets.")
+        return None
+
+    from broker import AngelBroker
+    b = AngelBroker()
+    if not b.login():
+        log.error("Angel One login failed")
+        return None
+    return b
+
+
+def _fetch_full(broker, tickers, days=500):
+    """Full download of all tickers from Angel One."""
+    log.info(f"Full download: {len(tickers)} tickers, {days} days of history")
+
+    prices = broker.get_bulk_historical(tickers, days=days)
+    if prices is None or prices.empty:
+        return None
+
+    # Also fetch index data (India VIX, Nifty)
+    from config import SIGNAL_TICKERS
+    for idx_name in SIGNAL_TICKERS:
+        series = broker.get_historical(idx_name, days=days)
+        if series is not None and len(series) > 0:
+            prices[idx_name] = series
+            log.info(f"  Index {idx_name}: {len(series)} days")
+        time.sleep(0.5)
+
+    return prices
+
+
+def _fetch_incremental(broker, cached_prices, tickers):
+    """Fetch only last 10 days and merge with cache."""
+    log.info("Incremental update: fetching last 10 days...")
+
+    all_series = {}
+    failed = []
+
+    # Fetch recent data for all tickers we have in cache
+    fetch_list = list(cached_prices.columns)
+    # Add any new tickers not in cache
+    for t in tickers:
+        if t not in fetch_list:
+            fetch_list.append(t)
+
+    for i, ticker in enumerate(fetch_list):
+        series = broker.get_historical(ticker, days=10)
+        if series is not None and len(series) > 0:
+            all_series[ticker] = series
+        else:
+            failed.append(ticker)
+
+        if (i + 1) % 3 == 0:
+            time.sleep(1)
+
+        if (i + 1) % 50 == 0:
+            log.info(f"  Incremental progress: {i+1}/{len(fetch_list)}")
+
+    if not all_series:
+        log.warning("Incremental fetch got nothing — using cache")
+        return cached_prices
+
+    fresh = pd.DataFrame(all_series)
+
+    # Merge: old data + new days
+    merged = pd.concat([cached_prices, fresh])
+    merged = merged[~merged.index.duplicated(keep='last')]
+    merged = merged.sort_index().ffill()
+
+    # Keep last 520 trading days (~2 years)
+    if len(merged) > 520:
+        merged = merged.iloc[-520:]
+
+    log.info(f"✅ Incremental done: {len(merged.columns)} tickers, {len(merged)} days. Failed: {len(failed)}")
+    return merged
+
+
 def download_prices(tickers=None, period="2y"):
-    """Try yfinance (single call first, then batch if fails), cache as final fallback."""
-    import yfinance as yf
-    from config import SAFE_HAVENS, SIGNAL_TICKERS
+    """
+    Smart download — Angel One only, with caching.
+
+    1. Fresh cache (< 6h) → use it (0 API calls)
+    2. Stale cache → incremental update (~200 small fetches)
+    3. No cache → full download (~200 fetches, ~70 seconds)
+    4. Everything fails → old cache if available
+    """
+    from config import SAFE_HAVENS
 
     if tickers is None:
         tickers = get_nifty200_tickers()
-    all_tickers = list(set(tickers + SAFE_HAVENS + SIGNAL_TICKERS))
-    total = len(all_tickers)
 
-    
+    all_tickers = list(set(tickers + SAFE_HAVENS))
 
-    # Attempt 2: batch download (5 at a time, 15s delay)
-    BATCH = 5
-    DELAY = 15
-    all_dfs = []
-    failed = []
-    total_batches = (total + BATCH - 1) // BATCH
-    log.info(f"yfinance batch mode: {total} tickers, {total_batches} batches, ~{total_batches * DELAY // 60} min...")
+    # ── Step 1: Check cache ──
+    cached = _load_cache()
 
-    for i in range(0, total, BATCH):
-        batch = all_tickers[i:i+BATCH]
-        batch_num = i // BATCH + 1
-        success = False
+    if cached is not None:
+        age_hours = (time.time() - os.path.getmtime(CACHE_FILE)) / 3600
 
-        for attempt in range(3):
-            try:
-                data = yf.download(batch, period=period, auto_adjust=True,
-                                   threads=False, progress=False)
-                if data.empty:
-                    raise ValueError("Empty result")
-                if len(batch) == 1:
-                    df = pd.DataFrame(data['Close'])
-                    df.columns = batch
-                elif isinstance(data.columns, pd.MultiIndex):
-                    df = data['Close']
-                else:
-                    df = pd.DataFrame(data['Close'])
-                if not df.empty:
-                    all_dfs.append(df)
-                    log.info(f"  [{batch_num}/{total_batches}] {[t.replace('.NS','')[:10] for t in batch]}")
-                    success = True
-                    break
-            except Exception as e:
-                wait = DELAY * (attempt + 1)
-                log.warning(f"  [{batch_num}] attempt {attempt+1} failed: {str(e)[:60]}. Wait {wait}s")
-                time.sleep(wait)
+        # Fresh cache → use directly
+        if age_hours < 6:
+            log.info("Cache is fresh — using directly (0 API calls)")
+            return cached, tickers
 
-        if not success:
-            failed.extend(batch)
+        # Stale cache → incremental update
+        log.info(f"Cache is {age_hours:.0f}h old — doing incremental update")
+        broker = _get_broker()
+        if broker:
+            updated = _fetch_incremental(broker, cached, all_tickers)
+            if updated is not None and len(updated.columns) > 20:
+                _save_cache(updated)
+                return updated, tickers
 
-        if i + BATCH < total:
-            time.sleep(DELAY)
+        # Broker login failed but we have cache — use it anyway
+        log.warning("Broker unavailable — using stale cache")
+        return cached, tickers
 
-    if all_dfs:
-        prices = pd.concat(all_dfs, axis=1)
-        prices = prices.loc[:, ~prices.columns.duplicated()].sort_index().ffill()
-        prices = prices.dropna(axis=1, how='all')
-        log.info(f"✅ Batch done: {len(prices.columns)}/{total} tickers, {len(prices)} days")
-        if failed:
-            log.warning(f"Failed ({len(failed)}): {failed[:10]}...")
-        prices.to_csv(CACHE_FILE)
+    # ── Step 2: No cache — full download ──
+    log.info("No cache — full download from Angel One")
+    broker = _get_broker()
+    if broker is None:
+        log.error("Cannot fetch data: no cache AND broker login failed!")
+        return pd.DataFrame(), tickers
+
+    prices = _fetch_full(broker, all_tickers, days=500)
+    if prices is not None and len(prices.columns) > 20:
+        _save_cache(prices)
         return prices, tickers
 
-    # Attempt 3: read cache
-    if os.path.exists(CACHE_FILE):
-        log.info("Using cached prices from prices_cache.csv")
-        prices = pd.read_csv(CACHE_FILE, index_col=0, parse_dates=True)
-        log.info(f"✅ Cache: {len(prices.columns)} tickers, {len(prices)} days")
-        return prices, tickers
-
-    log.error("All methods failed. Run update_prices.py locally first.")
+    log.error("Full download failed. No data available.")
     return pd.DataFrame(), tickers
