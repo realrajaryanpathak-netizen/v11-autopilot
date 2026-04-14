@@ -1,1 +1,32 @@
-[]
+[
+  {
+    "time": "2026-04-14 13:16",
+    "action": "BUY",
+    "ticker": "VEDL.NS",
+    "shares": 37,
+    "price": 752.55,
+    "value": 27844.35,
+    "pnl_pct": 0,
+    "order_id": "PAPER-13:16"
+  },
+  {
+    "time": "2026-04-14 13:16",
+    "action": "BUY",
+    "ticker": "MCX.NS",
+    "shares": 8,
+    "price": 2765.6,
+    "value": 22124.8,
+    "pnl_pct": 0,
+    "order_id": "PAPER-13:16"
+  },
+  {
+    "time": "2026-04-14 13:16",
+    "action": "BUY",
+    "ticker": "NATIONALUM.NS",
+    "shares": 55,
+    "price": 418.05,
+    "value": 22992.75,
+    "pnl_pct": 0,
+    "order_id": "PAPER-13:16"
+  }
+]

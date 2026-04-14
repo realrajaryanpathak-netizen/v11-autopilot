@@ -1,14 +1,90 @@
 {
-  "cash": 100000,
-  "holdings": {},
-  "buy_prices": {},
+  "cash": 26928.65714999999,
+  "holdings": {
+    "VEDL.NS": 37,
+    "MCX.NS": 8,
+    "NATIONALUM.NS": 55
+  },
+  "buy_prices": {
+    "VEDL.NS": 752.55,
+    "MCX.NS": 2765.6,
+    "NATIONALUM.NS": 418.05
+  },
   "inception": "2026-04-14",
   "inception_value": 100000,
-  "last_rebalance": null,
-  "regime": "UNKNOWN",
-  "details": {},
-  "picks": [],
-  "history": [],
+  "last_rebalance": "2026-04-14 13:16",
+  "regime": "MILD",
+  "details": {
+    "Breadth": 0.444,
+    "RealVol": 0.331,
+    "VolSpike": 1.27,
+    "SynthNiftyMom": 0.002,
+    "BreadthDelta": 0.019,
+    "CrashScore": "0/7"
+  },
+  "picks": [
+    {
+      "ticker": "NATIONALUM.NS",
+      "momentum": 122.8,
+      "acceleration": 134.8
+    },
+    {
+      "ticker": "MCX.NS",
+      "momentum": 139.8,
+      "acceleration": 20.9
+    },
+    {
+      "ticker": "POWERINDIA.NS",
+      "momentum": 102.4,
+      "acceleration": 19.5
+    },
+    {
+      "ticker": "VEDL.NS",
+      "momentum": 55.0,
+      "acceleration": 110.8
+    }
+  ],
+  "history": [
+    {
+      "date": "2026-04-14",
+      "value": 99890.56,
+      "regime": "MILD"
+    }
+  ],
   "fund_adds": [],
-  "holdings_snapshot": []
+  "holdings_snapshot": [
+    {
+      "ticker": "VEDL.NS",
+      "shares": 37,
+      "price": 752.55,
+      "buy_price": 752.55,
+      "value": 27844.35,
+      "weight": 27.9,
+      "pnl_pct": 0.0,
+      "pnl_abs": 0.0,
+      "category": "India"
+    },
+    {
+      "ticker": "NATIONALUM.NS",
+      "shares": 55,
+      "price": 418.05,
+      "buy_price": 418.05,
+      "value": 22992.75,
+      "weight": 23.0,
+      "pnl_pct": 0.0,
+      "pnl_abs": 0.0,
+      "category": "India"
+    },
+    {
+      "ticker": "MCX.NS",
+      "shares": 8,
+      "price": 2765.6,
+      "buy_price": 2765.6,
+      "value": 22124.8,
+      "weight": 22.1,
+      "pnl_pct": 0.0,
+      "pnl_abs": 0.0,
+      "category": "India"
+    }
+  ]
 }
