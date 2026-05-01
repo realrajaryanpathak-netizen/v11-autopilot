@@ -12,14 +12,14 @@
   },
   "inception": "2026-04-14",
   "inception_value": 100000,
-  "last_rebalance": "2026-04-14 13:16",
+  "last_rebalance": "2026-05-01 06:38",
   "regime": "MILD",
   "details": {
-    "Breadth": 0.426,
+    "Breadth": 0.444,
     "RealVol": 0.331,
-    "VolSpike": 1.25,
-    "SynthNiftyMom": -0.002,
-    "BreadthDelta": -0.037,
+    "VolSpike": 1.27,
+    "SynthNiftyMom": 0.002,
+    "BreadthDelta": 0.019,
     "CrashScore": "0/7"
   },
   "picks": [
@@ -107,6 +107,11 @@
     },
     {
       "date": "2026-04-30",
+      "value": 99890.56,
+      "regime": "MILD"
+    },
+    {
+      "date": "2026-05-01",
       "value": 99890.56,
       "regime": "MILD"
     }
