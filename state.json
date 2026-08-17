@@ -489,6 +489,11 @@
       "date": "2026-08-14",
       "value": 99890.56,
       "regime": "MILD"
+    },
+    {
+      "date": "2026-08-17",
+      "value": 99890.56,
+      "regime": "MILD"
     }
   ],
   "fund_adds": [],
