@@ -15,11 +15,11 @@
   "last_rebalance": "2026-09-01 09:14",
   "regime": "MILD",
   "details": {
-    "Breadth": 0.444,
+    "Breadth": 0.426,
     "RealVol": 0.331,
-    "VolSpike": 1.27,
-    "SynthNiftyMom": 0.002,
-    "BreadthDelta": 0.019,
+    "VolSpike": 1.25,
+    "SynthNiftyMom": -0.002,
+    "BreadthDelta": -0.037,
     "CrashScore": "0/7"
   },
   "picks": [
@@ -547,6 +547,11 @@
     },
     {
       "date": "2026-09-01",
+      "value": 99890.56,
+      "regime": "MILD"
+    },
+    {
+      "date": "2026-09-02",
       "value": 99890.56,
       "regime": "MILD"
     }
